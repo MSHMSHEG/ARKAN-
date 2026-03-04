@@ -31,12 +31,24 @@
       height: 100vh;
       object-fit: cover;
     }
+    /* تنسيق خاص لبطاقات الطلبات */
+    .order-card {
+      transition: all 0.3s ease;
+    }
+    .order-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
   </style>
   <script>
-    // متغيرات السلة
+    // متغيرات السلة والطلبات
     let cart = [];
+    let orders = JSON.parse(localStorage.getItem('arkanOrders')) || [];
 
     document.addEventListener("DOMContentLoaded", function () {
+      // استرجاع الطلبات المحفوظة وعرضها
+      renderOrders();
+
       setTimeout(function () {
         document.getElementById("splash-screen").classList.add("hidden");
         document.getElementById("main-content").classList.remove("hidden");
@@ -66,6 +78,7 @@
         e.preventDefault();
         hideAllContents();
         document.getElementById("orders-content").classList.remove("hidden");
+        renderOrders(); // تحديث القائمة عند فتح الصفحة
       });
 
       document.getElementById("profile-link").addEventListener("click", function (e) {
@@ -196,17 +209,134 @@
         
         let message = "طلب جديد من تطبيق اركان:%0A%0A";
         let total = 0;
+        let orderItems = [];
         
         cart.forEach(item => {
           const itemTotal = item.price * item.quantity;
           message += `• ${item.name}: ${item.price} × ${item.quantity} = ${itemTotal} ج.م%0A`;
           total += itemTotal;
+          orderItems.push({ name: item.name, price: item.price, quantity: item.quantity, total: itemTotal });
         });
         
         message += `%0A----------------%0Aالإجمالي النهائي: ${total} ج.م`;
 
+        // حفظ الطلب في السجل
+        const orderData = {
+          id: Date.now(),
+          date: new Date().toLocaleString('ar-EG'),
+          items: orderItems,
+          total: total,
+          status: 'جديد'
+        };
+        saveOrder(orderData);
+
         const whatsappNumber = "201019964505";
         window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
+        
+        // تفريغ السلة
+        cart = [];
+        updateCartCount();
+        renderCart();
+      }
+
+      // --- دوال إدارة الطلبات (Orders Management) ---
+
+      function saveOrder(orderData) {
+        orders.unshift(orderData); // إضافة الطلب الجديد في البداية
+        localStorage.setItem('arkanOrders', JSON.stringify(orders));
+        renderOrders();
+      }
+
+      function renderOrders() {
+        const ordersList = document.getElementById("orders-list");
+        ordersList.innerHTML = "";
+
+        if (orders.length === 0) {
+          ordersList.innerHTML = `
+            <div class="text-center text-gray-500 py-10">
+              <i class="fas fa-receipt text-6xl mb-4 text-gray-300"></i>
+              <p>لا توجد طلبات سابقة.</p>
+            </div>
+          `;
+          return;
+        }
+
+        orders.forEach((order, index) => {
+          const li = document.createElement("li");
+          li.className = "order-card bg-white p-4 rounded-lg shadow border border-gray-200 mb-3";
+          li.innerHTML = `
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="font-bold text-lg text-gray-800">طلب رقم #${order.id}</h3>
+                <p class="text-sm text-gray-500 mt-1"><i class="far fa-clock"></i> ${order.date}</p>
+                <span class="inline-block mt-2 px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                  ${order.status}
+                </span>
+              </div>
+              <div class="text-left">
+                <p class="text-green-600 font-bold text-lg">${order.total} ج.م</p>
+                <div class="flex space-x-2 rtl:space-x-reverse mt-2">
+                  <button onclick="viewOrderDetails(${index})" class="text-blue-500 hover:text-blue-700" title="عرض التفاصيل">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  <button onclick="deleteOrder(${index})" class="text-red-500 hover:text-red-700" title="حذف الطلب">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+          ordersList.appendChild(li);
+        });
+      }
+
+      window.viewOrderDetails = function(index) {
+        const order = orders[index];
+        let itemsHtml = order.items.map(item => 
+          `<li class="flex justify-between py-1 border-b border-gray-100 last:border-0">
+             <span>${item.name} (x${item.quantity})</span>
+             <span class="font-bold">${item.total} ج.م</span>
+           </li>`
+        ).join('');
+
+        Swal.fire({
+          title: `تفاصيل الطلب #${order.id}`,
+          html: `
+            <div class="text-right">
+              <p class="text-gray-600 mb-2">التاريخ: ${order.date}</p>
+              <ul class="text-gray-800 mb-4">${itemsHtml}</ul>
+              <div class="bg-gray-100 p-2 rounded text-center font-bold text-lg">
+                الإجمالي: ${order.total} ج.م
+              </div>
+            </div>
+          `,
+          confirmButtonText: 'حسناً',
+          confirmButtonColor: '#10B981'
+        });
+      }
+
+      window.deleteOrder = function(index) {
+        Swal.fire({
+          title: 'هل أنت متأكد؟',
+          text: "لن تتمكن من استرجاع هذا الطلب!",
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#3085d6',
+          confirmButtonText: 'نعم، احذفه!',
+          cancelButtonText: 'إلغاء'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            orders.splice(index, 1);
+            localStorage.setItem('arkanOrders', JSON.stringify(orders));
+            renderOrders();
+            Swal.fire(
+              'تم الحذف!',
+              'تم حذف الطلب بنجاح.',
+              'success'
+            )
+          }
+        })
       }
 
       // --- تغيير اللغة ---
@@ -243,13 +373,13 @@
           document.getElementById("takeaway-veg-back-button").title = "Back";
           document.getElementById("takeaway-veg-title").textContent = "Takeaway Vegetables";
         } else {
-          document.documentElement.lang = "ar";
+                    document.documentElement.lang = "ar";
           document.body.style.direction = "rtl";
           this.textContent = "English";
           document.getElementById("name-label").textContent = "الاسم";
           document.getElementById("address-label").textContent = "العنوان";
           document.getElementById("phone-label").textContent = "رقم الهاتف";
-          document.getElementById("order-details-label").textContent = "تفاصيل الطالبية";
+          document.getElementById("order-details-label").textContent = "تفاصيل الطلبية";
           document.getElementById("submit-button").textContent = "إرسال البيانات";
           document.getElementById("orders-title").textContent = "الطلبات";
           document.getElementById("profile-title").textContent = "الملف الشخصي";
@@ -347,6 +477,17 @@
 
         // رابط الواتساب
         const whatsappURL = `https://wa.me/${whatsappNumber}?text=${message}`;
+
+        // حفظ الطلب في السجل
+        const orderData = {
+          id: Date.now(),
+          date: new Date().toLocaleString('ar-EG'),
+          items: [{ name: "طلب يدوي", price: 0, quantity: 1, total: 0 }],
+          total: 0,
+          status: 'جديد',
+          details: { name, address, phone, orderDetails }
+        };
+        saveOrder(orderData);
 
         // فتح الواتساب في تبويب جديد
         window.open(whatsappURL, "_blank");
@@ -449,7 +590,7 @@
   </div>
 
   <!-- صفحة سلة المشتريات -->
-  <div aria-label="سلة المشتريات" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="cart-content" role="region">
+  <div aria-label="صفحة سلة المشتريات" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="cart-content" role="region">
     <h2 class="text-2xl font-bold mb-4" id="cart-title">سلة المشتريات</h2>
     <ul aria-live="polite" aria-relevant="additions" class="space-y-4" id="cart-list" tabindex="0"></ul>
     <button id="checkout-btn" class="hidden w-full bg-green-500 text-white py-3 rounded-lg font-bold mt-4 hover:bg-green-600 transition">إتمام الطلب عبر الواتساب</button>
@@ -588,7 +729,7 @@
   </div>
 
   <!-- صفحة تيك أوي -->
-  <div aria-label="صفحة تيك أوي" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="takeaway-veg-content" role="region">
+   <div aria-label="صفحة تيك أوي" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="takeaway-veg-content" role="region">
     <div class="flex items-center mb-4">
       <button aria-label="عودة" class="text-gray-700 hover:text-green-500" id="takeaway-veg-back-button"><i class="fas fa-arrow-right text-2xl"></i></button>
       <h2 class="text-2xl font-bold mx-auto" id="takeaway-veg-title">تيك أوي</h2>
