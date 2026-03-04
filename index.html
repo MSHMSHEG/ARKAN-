@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>اركان</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+    rel="stylesheet"
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Amiri&display=swap"
+    rel="stylesheet"
+  />
+  <!-- مكتبة الإشعارات -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body {
+      font-family: "Amiri", serif;
+    }
+    .fade-out {
+      opacity: 1;
+      transition: opacity 5s ease-out;
+    }
+    .fade-out.hidden {
+      opacity: 0;
+    }
+    #splash-screen img {
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+    }
+  </style>
+  <script>
+    // متغيرات السلة
+    let cart = [];
+
+    document.addEventListener("DOMContentLoaded", function () {
+      setTimeout(function () {
+        document.getElementById("splash-screen").classList.add("hidden");
+        document.getElementById("main-content").classList.remove("hidden");
+        document.getElementById("nav-bar").classList.remove("hidden");
+      }, 5000);
+
+      function hideAllContents() {
+        document.getElementById("main-content").classList.add("hidden");
+        document.getElementById("orders-content").classList.add("hidden");
+        document.getElementById("profile-content").classList.add("hidden");
+        document.getElementById("categories-content").classList.add("hidden");
+        document.getElementById("cart-content").classList.add("hidden");
+        document.getElementById("salim-content").classList.add("hidden");
+        document.getElementById("ready-veg-content").classList.add("hidden");
+        document.getElementById("on-cook-veg-content").classList.add("hidden");
+        document.getElementById("cooked-veg-content").classList.add("hidden");
+        document.getElementById("takeaway-veg-content").classList.add("hidden");
+      }
+
+      document.getElementById("home-link").addEventListener("click", function (e) {
+        e.preventDefault();
+        hideAllContents();
+        document.getElementById("main-content").classList.remove("hidden");
+      });
+
+      document.getElementById("orders-link").addEventListener("click", function (e) {
+        e.preventDefault();
+        hideAllContents();
+        document.getElementById("orders-content").classList.remove("hidden");
+      });
+
+      document.getElementById("profile-link").addEventListener("click", function (e) {
+        e.preventDefault();
+        hideAllContents();
+        document.getElementById("profile-content").classList.remove("hidden");
+      });
+
+      document.getElementById("categories-link").addEventListener("click", function (e) {
+        e.preventDefault();
+        hideAllContents();
+        document.getElementById("categories-content").classList.remove("hidden");
+      });
+
+      document.getElementById("cart-link").addEventListener("click", function (e) {
+        e.preventDefault();
+        hideAllContents();
+        document.getElementById("cart-content").classList.remove("hidden");
+        renderCart();
+      });
+
+      // تفعيل زر الإضافة في صفحة ساليم
+      const addButtons = document.querySelectorAll('.add-to-cart');
+      addButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const article = this.closest('article');
+          const name = article.getAttribute('data-name');
+          const price = parseFloat(article.getAttribute('data-price'));
+          addToCart(name, price);
+        });
+      });
+
+      // تفعيل زر إتمام الطلب في السلة
+      document.getElementById("checkout-btn").addEventListener("click", function() {
+        checkoutCart();
+      });
+
+      // --- دوال السلة الذكية ---
+
+      function addToCart(name, price) {
+        const existingItem = cart.find(item => item.name === name);
+        if (existingItem) {
+          existingItem.quantity += 1;
+        } else {
+          cart.push({ name, price, quantity: 1 });
+        }
+        updateCartCount();
+        
+        const Toast = Swal.mixin({
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true,
+          didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+          }
+        })
+        Toast.fire({
+          icon: 'success',
+          title: 'تمت الإضافة للسلة'
+        })
+      }
+
+      function updateCartCount() {
+        const count = cart.reduce((acc, item) => acc + item.quantity, 0);
+        const badge = document.getElementById("cart-count");
+        badge.textContent = count;
+        if (count > 0) {
+          badge.classList.remove("hidden");
+        } else {
+          badge.classList.add("hidden");
+        }
+      }
+
+      function renderCart() {
+        const cartList = document.getElementById("cart-list");
+        cartList.innerHTML = "";
+        let total = 0;
+
+        if (cart.length === 0) {
+          cartList.innerHTML = "<div class='text-center text-gray-500 py-8'><i class='fas fa-shopping-basket text-4xl mb-2'></i><p>السلة فارغة</p></div>";
+          document.getElementById("checkout-btn").classList.add("hidden");
+          return;
+        }
+
+        document.getElementById("checkout-btn").classList.remove("hidden");
+
+        cart.forEach((item, index) => {
+          const itemTotal = item.price * item.quantity;
+          total += itemTotal;
+          
+          const li = document.createElement("li");
+          li.className = "flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-200 mb-2";
+          li.innerHTML = `
+            <div class="flex-1">
+              <p class="font-bold text-gray-800">${item.name}</p>
+              <p class="text-sm text-gray-500">${item.price} ج.م × ${item.quantity}</p>
+            </div>
+            <div class="flex items-center space-x-3 rtl:space-x-reverse">
+              <span class="font-bold text-green-600">${itemTotal} ج.م</span>
+              <button onclick="removeFromCart(${index})" class="text-red-400 hover:text-red-600 p-2">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </div>
+          `;
+          cartList.appendChild(li);
+        });
+
+        const totalDiv = document.createElement("div");
+        totalDiv.className = "mt-4 p-4 bg-green-50 rounded-lg border border-green-200 text-center";
+        totalDiv.innerHTML = `
+          <p class="text-gray-600">الإجمالي المطلوب</p>
+          <p class="text-3xl font-bold text-green-700">${total} <span class="text-sm">ج.م</span></p>
+        `;
+        cartList.appendChild(totalDiv);
+      }
+
+      window.removeFromCart = function(index) {
+        cart.splice(index, 1);
+        updateCartCount();
+        renderCart();
+      }
+
+      function checkoutCart() {
+        if (cart.length === 0) return;
+        
+        let message = "طلب جديد من تطبيق مشمش:%0A%0A";
+        let total = 0;
+        
+        cart.forEach(item => {
+          const itemTotal = item.price * item.quantity;
+          message += `• ${item.name}: ${item.price} × ${item.quantity} = ${itemTotal} ج.م%0A`;
+          total += itemTotal;
+        });
+        
+        message += `%0A----------------%0Aالإجمالي النهائي: ${total} ج.م`;
+
+        const whatsappNumber = "201019964505";
+        window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank");
+      }
+
+      // --- تغيير اللغة ---
+      
+      document.getElementById("language-toggle").addEventListener("click", function () {
+        const currentLang = document.documentElement.lang;
+        if (currentLang === "ar") {
+          document.documentElement.lang = "en";
+          document.body.style.direction = "ltr";
+          this.textContent = "عربي";
+          document.getElementById("name-label").textContent = "Name";
+          document.getElementById("address-label").textContent = "Address";
+          document.getElementById("phone-label").textContent = "Phone Number";
+          document.getElementById("order-details-label").textContent = "Order Details";
+          document.getElementById("submit-button").textContent = "Submit";
+          document.getElementById("orders-title").textContent = "Orders";
+          document.getElementById("profile-title").textContent = "Profile";
+          document.getElementById("categories-title").textContent = "Categories";
+          document.getElementById("cart-title").textContent = "Cart";
+          document.getElementById("home-link-text").textContent = "Home";
+          document.getElementById("orders-link-text").textContent = "Orders";
+          document.getElementById("profile-link-text").textContent = "Profile";
+          document.getElementById("categories-link-text").textContent = "Categories";
+          document.getElementById("cart-link-text").textContent = "Cart";
+          document.getElementById("salim-title").textContent = "Salim Vegetables";
+          document.getElementById("salim-desc").textContent = "This is the Salim vegetables page.";
+          document.getElementById("back-button").title = "Back";
+          document.getElementById("ready-veg-back-button").title = "Back";
+          document.getElementById("ready-veg-title").textContent = "Ready Vegetables";
+          document.getElementById("on-cook-veg-back-button").title = "Back";
+          document.getElementById("on-cook-veg-title").textContent = "On Cook Vegetables";
+          document.getElementById("cooked-veg-back-button").title = "Back";
+          document.getElementById("cooked-veg-title").textContent = "Cooked Vegetables";
+          document.getElementById("takeaway-veg-back-button").title = "Back";
+          document.getElementById("takeaway-veg-title").textContent = "Takeaway Vegetables";
+        } else {
+          document.documentElement.lang = "ar";
+          document.body.style.direction = "rtl";
+          this.textContent = "English";
+          document.getElementById("name-label").textContent = "الاسم";
+          document.getElementById("address-label").textContent = "العنوان";
+          document.getElementById("phone-label").textContent = "رقم الهاتف";
+          document.getElementById("order-details-label").textContent = "تفاصيل الطالبية";
+          document.getElementById("submit-button").textContent = "إرسال البيانات";
+          document.getElementById("orders-title").textContent = "الطلبات";
+          document.getElementById("profile-title").textContent = "الملف الشخصي";
+          document.getElementById("categories-title").textContent = "الأصناف";
+          document.getElementById("cart-title").textContent = "سلة المشتريات";
+          document.getElementById("home-link-text").textContent = "الرئيسية";
+          document.getElementById("orders-link-text").textContent = "الطلبات";
+          document.getElementById("profile-link-text").textContent = "الملف الشخصي";
+          document.getElementById("categories-link-text").textContent = "الأصناف";
+          document.getElementById("cart-link-text").textContent = "سلة المشتريات";
+          document.getElementById("salim-title").textContent = "خضار ساليم";
+          document.getElementById("salim-desc").textContent = "هذه صفحة خضار ساليم.";
+          document.getElementById("back-button").title = "عودة";
+          document.getElementById("ready-veg-back-button").title = "عودة";
+          document.getElementById("ready-veg-title").textContent = "خضار جاهز";
+          document.getElementById("on-cook-veg-back-button").title = "عودة";
+          document.getElementById("on-cook-veg-title").textContent = "أكل على التسوية";
+          document.getElementById("cooked-veg-back-button").title = "عودة";
+          document.getElementById("cooked-veg-title").textContent = "أكل مستوي";
+          document.getElementById("takeaway-veg-back-button").title = "عودة";
+          document.getElementById("takeaway-veg-title").textContent = "تيك أوي";
+        }
+      });
+
+      // روابط الأصناف
+      document.getElementById("salim-link").addEventListener("click", function () {
+        hideAllContents();
+        document.getElementById("salim-content").classList.remove("hidden");
+      });
+
+      document.getElementById("back-button").addEventListener("click", function () {
+        document.getElementById("salim-content").classList.add("hidden");
+        document.getElementById("categories-content").classList.remove("hidden");
+      });
+
+      document.getElementById("ready-veg-link").addEventListener("click", function () {
+        hideAllContents();
+        document.getElementById("ready-veg-content").classList.remove("hidden");
+      });
+      document.getElementById("ready-veg-back-button").addEventListener("click", function () {
+        document.getElementById("ready-veg-content").classList.add("hidden");
+        document.getElementById("categories-content").classList.remove("hidden");
+      });
+
+      document.getElementById("on-cook-veg-link").addEventListener("click", function () {
+        hideAllContents();
+        document.getElementById("on-cook-veg-content").classList.remove("hidden");
+      });
+      document.getElementById("on-cook-veg-back-button").addEventListener("click", function () {
+        document.getElementById("on-cook-veg-content").classList.add("hidden");
+        document.getElementById("categories-content").classList.remove("hidden");
+      });
+
+      document.getElementById("cooked-veg-link").addEventListener("click", function () {
+        hideAllContents();
+        document.getElementById("cooked-veg-content").classList.remove("hidden");
+      });
+      document.getElementById("cooked-veg-back-button").addEventListener("click", function () {
+        document.getElementById("cooked-veg-content").classList.add("hidden");
+        document.getElementById("categories-content").classList.remove("hidden");
+      });
+
+      document.getElementById("takeaway-veg-link").addEventListener("click", function () {
+        hideAllContents();
+        document.getElementById("takeaway-veg-content").classList.remove("hidden");
+      });
+      document.getElementById("takeaway-veg-back-button").addEventListener("click", function () {
+        document.getElementById("takeaway-veg-content").classList.add("hidden");
+        document.getElementById("categories-content").classList.remove("hidden");
+      });
+
+      // نموذج الطلب مع تنبيهات SweetAlert2
+      document.getElementById("order-form").addEventListener("submit", function (e) {
+        e.preventDefault();
+        const name = document.getElementById("name").value.trim();
+        const address = document.getElementById("address").value.trim();
+        const phone = document.getElementById("phone").value.trim();
+        const orderDetails = document.getElementById("order-details").value.trim();
+
+        if (!name || !address || !phone || !orderDetails) {
+          Swal.fire({ 
+            icon: 'warning', 
+            title: 'تنبيه', 
+            text: 'يرجى ملء جميع الحقول',
+            confirmButtonText: 'حسناً'
+          });
+          return;
+        }
+
+        // تحضير نص الرسالة
+        const message = `الاسم: ${name}%0Aالعنوان: ${address}%0Aرقم الهاتف: ${phone}%0Aتفاصيل الطلب: ${orderDetails}`;
+
+        // رقم الواتساب مع رمز الدولة (مصر +20)
+        const whatsappNumber = "201019964505";
+
+        // رابط الواتساب
+        const whatsappURL = `https://wa.me/${whatsappNumber}?text=${message}`;
+
+        // فتح الواتساب في تبويب جديد
+        window.open(whatsappURL, "_blank");
+        
+        // عرض تنبيه النجاح
+        Swal.fire({
+          icon: 'success',
+          title: 'تم الإرسال بنجاح!',
+          text: 'سيتم تحويلك إلى الواتساب لإتمام الطلب',
+          timer: 3000,
+          showConfirmButton: false,
+          confirmButtonText: 'حسناً'
+        });
+        
+        // تفريغ الحقول
+        this.reset();
+      });
+    });
+  </script>
+</head>
+<body class="bg-gray-100 p-5 h-screen flex flex-col items-center overflow-hidden">
+  
+  <!-- شاشة التحميل (Splash Screen) -->
+  <div aria-atomic="true" aria-live="assertive" class="fixed inset-0 bg-green-900 flex items-center justify-center fade-out" id="splash-screen" role="alert">
+    <img alt="شاشة تحميل خضراء مع شعار هندسي مركزي باللون الأصفر يغطي كامل مساحة الشاشة" src="https://i.postimg.cc/mgD71zHp/file-00000000a9107246baa1d3b13b64e536.png" width="60%" height="60%" />
+  </div>
+  <!-- المحتوى الرئيسي (نموذج الطلب) -->
+  <div aria-label="نموذج الطلب" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="main-content" role="main">
+    <form class="space-y-4" id="order-form" novalidate>
+      <div class="flex flex-col">
+        <label class="mb-2 text-gray-700" for="name" id="name-label">الاسم</label>
+        <input aria-required="true" class="border border-gray-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-green-500" id="name" name="name" required type="text" />
+      </div>
+      <div class="flex flex-col">
+        <label class="mb-2 text-gray-700" for="address" id="address-label">العنوان</label>
+        <input aria-required="true" class="border border-gray-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-green-500" id="address" name="address" required type="text" />
+      </div>
+      <div class="flex flex-col">
+        <label class="mb-2 text-gray-700" for="phone" id="phone-label">رقم الهاتف</label>
+        <input aria-required="true" class="border border-gray-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-green-500" id="phone" name="phone" pattern="^\+?\d{7,15}$" required title="يرجى إدخال رقم هاتف صالح" type="tel" />
+      </div>
+      <div class="flex flex-col">
+        <label class="mb-2 text-gray-700" for="order-details" id="order-details-label">تفاصيل الطلبية</label>
+        <textarea aria-required="true" class="border border-gray-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-green-500" id="order-details" name="order-details" required rows="3"></textarea>
+      </div>
+      <button class="bg-green-500 text-white px-4 py-2 rounded-full hover:bg-green-600 mt-4" id="submit-button" style="height: 1cm" type="submit">إرسال البيانات</button>
+    </form>
+  </div>
+
+  <!-- صفحة الطلبات -->
+  <div aria-label="الطلبات" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="orders-content" role="region">
+    <h2 class="text-2xl font-bold mb-4" id="orders-title">الطلبات</h2>
+    <ul aria-live="polite" aria-relevant="additions" class="space-y-4" id="orders-list" tabindex="0"></ul>
+  </div>
+
+  <!-- صفحة الملف الشخصي -->
+  <div aria-label="الملف الشخصي" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="profile-content" role="region">
+    <h2 class="text-2xl font-bold mb-4" id="profile-title">الملف الشخصي</h2>
+    <div class="flex justify-center">
+      <button aria-pressed="false" class="bg-green-500 text-white px-4 py-2 rounded-full hover:bg-green-600 mt-4" id="language-toggle" style="height: 1cm">عربي</button>
+    </div>
+  </div>
+
+  <!-- صفحة الأصناف -->
+  <div aria-label="الأصناف" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="categories-content" role="region">
+    <h2 class="text-2xl font-bold mb-4" id="categories-title">الأصناف</h2>
+    <div class="grid grid-cols-2 gap-4">
+      <!-- صنف خضار ساليم -->
+      <div aria-label="خضار ساليم، خضار طازج غير مطبوخ" class="border border-gray-300 p-2 rounded shadow-sm cursor-pointer" id="salim-link" role="button" tabindex="0">
+        <img alt="صورة خضار طازج غير مطبوخ مع أوراق خضراء وزهور صغيرة" class="w-full h-auto rounded" height="200" src="https://i.postimg.cc/vH0pB4r3/IMG.jpg" width="300" />
+        <p class="text-sm"><strong>الصنف:</strong> خضار ساليم</p>
+        <p class="text-sm"><strong>الوصف:</strong> خضار طازج غير مطبوخ</p>
+      </div>
+      
+      <!-- صنف خضار جاهز -->
+      <div aria-label="خضار جاهز، خضار مغسول ومقطع جاهز للطهي" class="border border-gray-300 p-2 rounded shadow-sm cursor-pointer" role="button" tabindex="0" id="ready-veg-link">
+        <img alt="صورة خضار مغسول ومقطع جاهز للطهي مع ألوان خضراء وبرتقالية" class="w-full h-auto rounded" height="300" src="https://i.postimg.cc/NM7xD9qr/FB-IMG-1749833848317.jpg" width="300" />
+        <p class="text-sm"><strong>الصنف:</strong> خضار جاهز</p>
+        <p class="text-sm"><strong>الوصف:</strong> خضار مغسول ومقطع جاهز للطهي</p>
+      </div>
+      <!-- صنف أكل على التسوية -->
+      <div aria-label="أكل على التسوية، أطعمة جاهزة للطهي النهائي" class="border border-gray-300 p-2 rounded shadow-sm cursor-pointer" role="button" tabindex="0" id="on-cook-veg-link">
+        <img alt="صورة أطعمة نصف مطبوخة جاهزة للطهي النهائي مع ألوان دافئة" class="w-full h-auto rounded" height="200" src="https://i.postimg.cc/qqs3ktzL/FB-IMG-1749831638954.jpg" width="300" />
+        <p class="text-sm"><strong>الصنف:</strong> أكل على التسوية</p>
+        <p class="text-sm"><strong>الوصف:</strong> أطعمة جاهزة للطهي النهائي</p>
+      </div>
+      <!-- صنف أكل مستوي -->
+      <div aria-label="أكل مستوي، أطعمة مطبوخة جاهزة للأكل" class="border border-gray-300 p-2 rounded shadow-sm cursor-pointer" role="button" tabindex="0" id="cooked-veg-link">
+        <img alt="صورة أطعمة مطبوخة جاهزة للأكل مع ألوان دافئة ومكونات متنوعة" class="w-full h-auto rounded" height="100" src="https://i.postimg.cc/qBwLC3xP/FB-IMG-1749833944637.jpg" width="300" />
+        <p class="text-sm"><strong>الصنف:</strong> أكل مستوي</p>
+        <p class="text-sm"><strong>الوصف:</strong> أطعمة مطبوخة جاهزة للأكل</p>
+      </div>
+      <!-- صنف تيك أوي -->
+      <div aria-label="تيك أوي، أطعمة جاهزة للتناول خارج المنزل" class="border border-gray-300 p-2 rounded shadow-sm cursor-pointer" role="button" tabindex="0" id="takeaway-veg-link">
+        <img alt="صورة أطعمة جاهزة للتناول خارج المنزل مع تغليف عصري وألوان جذابة" class="w-full h-auto rounded" height="200" src="https://i.postimg.cc/L5x3dcs9/FB-IMG-1749833879618.jpg" width="300" />
+        <p class="text-sm"><strong>الصنف:</strong> تيك أوي</p>
+        <p class="text-sm"><strong>الوصف:</strong> أطعمة جاهزة للتناول خارج المنزل</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- صفحة سلة المشتريات -->
+  <div aria-label="سلة المشتريات" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="cart-content" role="region">
+    <h2 class="text-2xl font-bold mb-4" id="cart-title">سلة المشتريات</h2>
+    <ul aria-live="polite" aria-relevant="additions" class="space-y-4" id="cart-list" tabindex="0"></ul>
+    <button id="checkout-btn" class="hidden w-full bg-green-500 text-white py-3 rounded-lg font-bold mt-4 hover:bg-green-600 transition">إتمام الطلب عبر الواتساب</button>
+  </div>
+
+  <!-- صفحة خضار ساليم -->
+  <div aria-label="صفحة خضار ساليم" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="salim-content" role="region">
+    <div class="flex items-center mb-4">
+      <button aria-label="عودة" class="text-gray-700 hover:text-green-500" id="back-button"><i class="fas fa-arrow-right text-2xl"></i></button>
+      <h2 class="text-2xl font-bold mx-auto" id="salim-title">خضار ساليم</h2>
+    </div>
+    <p class="text-center text-gray-600" id="salim-desc">هذه صفحة خضار ساليم.</p>
+    <div class="grid grid-cols-2 gap-3 mt-4">
+      <article data-id="1" data-name="شلة الفضاء" data-price="265" class="all pizza bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+        <div class="w-full h-32 bg-white flex items-center justify-center overflow-hidden">
+          <img alt="شلة الفضاء" class="max-w-full max-h-full object-contain" height="300" loading="lazy" src="https://images.deliveryhero.io/image/talabat/MenuItems/2_4638834305244655647.png?width=172&height=172" width="300"/>
+        </div>
+        <div class="p-4 flex flex-col flex-grow">
+          <h3 class="text-lg font-semibold mb-2 text-gray-900">شلة الفضاء</h3>
+          <p class="text-gray-600 text-sm line-clamp-3 flex-grow">2سندوتش برجر من لحم الواجيوالمشوى على الفحم في خبز البريوش الطازج مع صوص وهمى الخطير وصوص الصويا مايونيز المميز وشرائح الخس والطماطم والبصل الطازجه والخيار المخلل والمغطى بالجبنة الشيدر السايحه، يقدم مع بطاطس وهمى المبهرة و 2 مشروب.</p>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="text-yellow-500 font-bold text-lg">$265</span>
+            <button aria-label="إضافة شلة الفضاء إلى عربة التسوق" class="add-to-cart bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-full transition flex items-center space-x-2 rtl:space-x-reverse"><i class="fas fa-shopping-cart"></i><span>إضافة</span></button>
+          </div>
+        </div>
+      </article>
+      <article data-id="2" data-name="وجبة خاصة" data-price="200" class="all pizza bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+        <div class="w-full h-32 bg-white flex items-center justify-center overflow-hidden">
+          <img alt="وجبة خاصة" class="max-w-full max-h-full object-contain" height="300" loading="lazy" src="https://images.deliveryhero.io/image/talabat/MenuItems/2_4638834305244655647.png?width=172&height=172" width="300"/>
+        </div>
+        <div class="p-4 flex flex-col flex-grow">
+          <h3 class="text-lg font-semibold mb-2 text-gray-900">وجبة خاصة</h3>
+          <p class="text-gray-600 text-sm line-clamp-3 flex-grow">وجبة متكاملة تشمل سندوتش برجر كبير مع بطاطس ومشروب بارد حسب الاختيار.</p>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="text-yellow-500 font-bold text-lg">$200</span>
+            <button aria-label="إضافة وجبة خاصة إلى عربة التسوق" class="add-to-cart bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-full transition flex items-center space-x-2 rtl:space-x-reverse"><i class="fas fa-shopping-cart"></i><span>إضافة</span></button>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <!-- صفحة خضار جاهز -->
+  <div aria-label="صفحة خضار جاهز" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="ready-veg-content" role="region">
+    <div class="flex items-center mb-4">
+      <button aria-label="عودة" class="text-gray-700 hover:text-green-500" id="ready-veg-back-button"><i class="fas fa-arrow-right text-2xl"></i></button>
+      <h2 class="text-2xl font-bold mx-auto" id="ready-veg-title">خضار جاهز</h2>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mt-4">
+      <article data-id="1" data-name="شلة الفضاء" data-price="265" class="all pizza bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+        <div class="w-full h-32 bg-white flex items-center justify-center overflow-hidden">
+          <img alt="شلة الفضاء" class="max-w-full max-h-full object-contain" height="300" loading="lazy" src="https://images.deliveryhero.io/image/talabat/MenuItems/2_4638834305244655647.png?width=172&height=172" width="300"/>
+        </div>
+        <div class="p-4 flex flex-col flex-grow">
+          <h3 class="text-lg font-semibold mb-2 text-gray-900">شلة الفضاء</h3>
+          <p class="text-gray-600 text-sm line-clamp-3 flex-grow">2سندوتش برجر من لحم الواجيوالمشوى على الفحم في خبز البريوش الطازج مع صوص وهمى الخطير وصوص الصويا مايونيز المميز.</p>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="text-yellow-500 font-bold text-lg">$265</span>
+            <button aria-label="إضافة شلة الفضاء إلى عربة التسوق" class="add-to-cart bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-full transition flex items-center space-x-2 rtl:space-x-reverse"><i class="fas fa-shopping-cart"></i><span>إضافة</span></button>
+          </div>
+        </div>
+      </article>
+  
+    </div>
+  </div>
+  <!-- صفحة أكل على التسوية -->
+  <div aria-label="صفحة أكل على التسوية" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="on-cook-veg-content" role="region">
+    <div class="flex items-center mb-4">
+      <button aria-label="عودة" class="text-gray-700 hover:text-green-500" id="on-cook-veg-back-button"><i class="fas fa-arrow-right text-2xl"></i></button>
+      <h2 class="text-2xl font-bold mx-auto" id="on-cook-veg-title">أكل على التسوية</h2>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mt-4">
+      <article data-id="1" data-name="شلة الفضاء" data-price="265" class="all pizza bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+        <div class="w-full h-32 bg-white flex items-center justify-center overflow-hidden">
+          <img alt="شلة الفضاء" class="max-w-full max-h-full object-contain" height="300" loading="lazy" src="https://images.deliveryhero.io/image/talabat/MenuItems/2_4638834305244655647.png?width=172&height=172" width="300"/>
+        </div>
+        <div class="p-4 flex flex-col flex-grow">
+          <h3 class="text-lg font-semibold mb-2 text-gray-900">شلة الفضاء</h3>
+          <p class="text-gray-600 text-sm line-clamp-3 flex-grow">2سندوتش برجر من لحم الواجيوالمشوى على الفحم في خبز البريوش الطازج مع صوص وهمى الخطير وصوص الصويا مايونيز المميز.</p>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="text-yellow-500 font-bold text-lg">$265</span>
+            <button aria-label="إضافة شلة الفضاء إلى عربة التسوق" class="add-to-cart bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-full transition flex items-center space-x-2 rtl:space-x-reverse"><i class="fas fa-shopping-cart"></i><span>إضافة</span></button>
+          </div>
+        </div>
+      </article>
+      <article data-id="2" data-name="وجبة خاصة" data-price="180" class="all pizza bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+        <div class="w-full h-32 bg-white flex items-center justify-center overflow-hidden">
+          <img alt="وجبة خاصة" class="max-w-full max-h-full object-contain" height="300" loading="lazy" src="https://images.deliveryhero.io/image/talabat/MenuItems/2_4638834305244655647.png?width=172&height=172" width="300"/>
+        </div>
+        <div class="p-4 flex flex-col flex-grow">
+          <h3 class="text-lg font-semibold mb-2 text-gray-900">وجبة خاصة</h3>
+          <p class="text-gray-600 text-sm line-clamp-3 flex-grow">وجبة متكاملة تشمل سندوتش برجر كبير مع بطاطس ومشروب بارد حسب الاختيار.</p>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="text-yellow-500 font-bold text-lg">$180</span>
+            <button aria-label="إضافة وجبة خاصة إلى عربة التسوق" class="add-to-cart bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-full transition flex items-center space-x-2 rtl:space-x-reverse"><i class="fas fa-shopping-cart"></i><span>إضافة</span></button>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <!-- صفحة أكل مستوي -->
+  <div aria-label="صفحة أكل مستوي" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="cooked-veg-content" role="region">
+    <div class="flex items-center mb-4">
+      <button aria-label="عودة" class="text-gray-700 hover:text-green-500" id="cooked-veg-back-button"><i class="fas fa-arrow-right text-2xl"></i></button>
+      <h2 class="text-2xl font-bold mx-auto" id="cooked-veg-title">أكل مستوي</h2>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mt-4">
+      <article data-id="1" data-name="شلة الفضاء" data-price="265" class="all pizza bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+        <div class="w-full h-32 bg-white flex items-center justify-center overflow-hidden">
+          <img alt="شلة الفضاء" class="max-w-full max-h-full object-contain" height="300" loading="lazy" src="https://images.deliveryhero.io/image/talabat/MenuItems/2_4638834305244655647.png?width=172&height=172" width="300"/>
+        </div>
+        <div class="p-4 flex flex-col flex-grow">
+          <h3 class="text-lg font-semibold mb-2 text-gray-900">شلة الفضاء</h3>
+          <p class="text-gray-600 text-sm line-clamp-3 flex-grow">2سندوتش برجر من لحم الواجيوالمشوى على الفحم في خبز البريوش الطازج مع صوص وهمى الخطير وصوص الصويا مايونيز المميز.</p>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="text-yellow-500 font-bold text-lg">$265</span>
+            <button aria-label="إضافة شلة الفضاء إلى عربة التسوق" class="add-to-cart bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-full transition flex items-center space-x-2 rtl:space-x-reverse"><i class="fas fa-shopping-cart"></i><span>إضافة</span></button>
+          </div>
+        </div>
+      </article>
+      <article data-id="2" data-name="وجبة خاصة" data-price="180" class="all pizza bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+        <div class="w-full h-32 bg-white flex items-center justify-center overflow-hidden">
+          <img alt="وجبة خاصة" class="max-w-full max-h-full object-contain" height="300" loading="lazy" src="https://images.deliveryhero.io/image/talabat/MenuItems/2_4638834305244655647.png?width=172&height=172" width="300"/>
+        </div>
+        <div class="p-4 flex flex-col flex-grow">
+          <h3 class="text-lg font-semibold mb-2 text-gray-900">وجبة خاصة</h3>
+          <p class="text-gray-600 text-sm line-clamp-3 flex-grow">وجبة متكاملة تشمل سندوتش برجر كبير مع بطاطس ومشروب بارد حسب الاختيار.</p>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="text-yellow-500 font-bold text-lg">$180</span>
+            <button aria-label="إضافة وجبة خاصة إلى عربة التسوق" class="add-to-cart bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-full transition flex items-center space-x-2 rtl:space-x-reverse"><i class="fas fa-shopping-cart"></i><span>إضافة</span></button>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <!-- صفحة تيك أوي -->
+  <div aria-label="صفحة تيك أوي" class="max-w-lg w-full bg-white p-6 rounded-lg shadow-lg hidden flex-grow overflow-auto" id="takeaway-veg-content" role="region">
+    <div class="flex items-center mb-4">
+      <button aria-label="عودة" class="text-gray-700 hover:text-green-500" id="takeaway-veg-back-button"><i class="fas fa-arrow-right text-2xl"></i></button>
+      <h2 class="text-2xl font-bold mx-auto" id="takeaway-veg-title">تيك أوي</h2>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mt-4">
+      <article data-id="1" data-name="شلة الفضاء" data-price="265" class="all pizza bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+        <div class="w-full h-32 bg-white flex items-center justify-center overflow-hidden">
+          <img alt="شلة الفضاء" class="max-w-full max-h-full object-contain" height="300" loading="lazy" src="https://images.deliveryhero.io/image/talabat/MenuItems/2_4638834305244655647.png?width=172&height=172" width="300"/>
+        </div>
+        <div class="p-4 flex flex-col flex-grow">
+          <h3 class="text-lg font-semibold mb-2 text-gray-900">شلة الفضاء</h3>
+          <p class="text-gray-600 text-sm line-clamp-3 flex-grow">2سندوتش برجر من لحم الواجيوالمشوى على الفحم في خبز البريوش الطازج مع صوص وهمى الخطير وصوص الصويا مايونيز المميز.</p>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="text-yellow-500 font-bold text-lg">$265</span>
+            <button aria-label="إضافة شلة الفضاء إلى عربة التسوق" class="add-to-cart bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-full transition flex items-center space-x-2 rtl:space-x-reverse"><i class="fas fa-shopping-cart"></i><span>إضافة</span></button>
+          </div>
+        </div>
+      </article>
+      <article data-id="2" data-name="وجبة خاصة" data-price="180" class="all pizza bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+        <div class="w-full h-32 bg-white flex items-center justify-center overflow-hidden">
+          <img alt="وجبة خاصة" class="max-w-full max-h-full object-contain" height="300" loading="lazy" src="https://images.deliveryhero.io/image/talabat/MenuItems/2_4638834305244655647.png?width=172&height=172" width="300"/>
+        </div>
+        <div class="p-4 flex flex-col flex-grow">
+          <h3 class="text-lg font-semibold mb-2 text-gray-900">وجبة خاصة</h3>
+          <p class="text-gray-600 text-sm line-clamp-3 flex-grow">وجبة متكاملة تشمل سندوتش برجر كبير مع بطاطس ومشروب بارد حسب الاختيار.</p>
+          <div class="mt-2 flex items-center justify-between">
+            <span class="text-yellow-500 font-bold text-lg">$180</span>
+            <button aria-label="إضافة وجبة خاصة إلى عربة التسوق" class="add-to-cart bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-full transition flex items-center space-x-2 rtl:space-x-reverse"><i class="fas fa-shopping-cart"></i><span>إضافة</span></button>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <!-- شريط التنقل السفلي -->
+  <nav aria-label="قائمة التنقل الرئيسية" class="bg-white p-2 shadow-md fixed bottom-0 inset-x-0 hidden" id="nav-bar" role="navigation">
+    <ul class="flex justify-around">
+      <li>
+        <a aria-label="الملف الشخصي" class="text-gray-700 hover:text-green-500 flex flex-col items-center" href="#profile" id="profile-link" tabindex="0">
+          <i aria-hidden="true" class="fas fa-user text-xl"></i>
+          <span class="block text-xs" id="profile-link-text">الملف الشخصي</span>
+        </a>
+      </li>
+      <li>
+        <a aria-label="الطلبات" class="text-gray-700 hover:text-green-500 flex flex-col items-center" href="#orders" id="orders-link" tabindex="0">
+          <i aria-hidden="true" class="fas fa-list text-xl"></i>
+          <span class="block text-xs" id="orders-link-text">الطلبات</span>
+        </a>
+      </li>
+      <li>
+        <a aria-label="الأصناف" class="text-gray-700 hover:text-green-500 flex flex-col items-center" href="#categories" id="categories-link" tabindex="0">
+          <i aria-hidden="true" class="fas fa-th text-xl"></i>
+          <span class="block text-xs" id="categories-link-text">الأصناف</span>
+        </a>
+      </li>
+      <li>
+        <a aria-label="سلة المشتريات" class="text-gray-700 hover:text-green-500 flex flex-col items-center relative" href="#cart" id="cart-link" tabindex="0">
+          <i aria-hidden="true" class="fas fa-shopping-cart text-xl"></i>
+          <span class="block text-xs" id="cart-link-text">سلة المشتريات</span>
+          <span id="cart-count" class="absolute -top-2 -left-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+        </a>
+      </li>
+      <li>
+        <a aria-label="الرئيسية" class="text-gray-700 hover:text-green-500 flex flex-col items-center" href="#home" id="home-link" tabindex="0">
+          <i aria-hidden="true" class="fas fa-home text-xl"></i>
+          <span class="block text-xs" id="home-link-text">الرئيسية</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+</body>
+</html>
